@@ -1,0 +1,30 @@
+version: '3.1'
+
+services:
+  db:
+    image: mariadb
+    environment:
+      MYSQL_USER: mariadb
+      MYSQL_PASSWORD: mariadb
+      MYSQL_ROOT_PASSWORD: mariadb
+      MYSQL_DATABASE: memoryholedb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb:/var/lib/mysql
+    hostname: db
+
+  adminer:
+    image: adminer
+    links:
+      - db
+    ports:
+      - "8000:8080"
+
+  cache:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  mariadb:

@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model creator {
+  id                    String                  @id @db.Char(36)
+  name                  String                  @db.VarChar(255)
+  profilePicture        String?                 @db.VarChar(255)
+  bannerPicture         String?                 @db.VarChar(255)
+  // said creator's total post count from acorss all the platforms
+  totalPostCount        Int                     @default(0)
+  lastUpdated           DateTime                @default(now()) @db.DateTime(6)
+  created               DateTime                @default(now()) @db.DateTime(6)
+  patreon_attachment    patreon_attachment[]
+  patreon               patreon_creator[]
+  user_favorite_creator user_favorite_creator[]
+
+  @@index([name], map: "IDX_9c6b0bba8fc302c9c0d5d1f018")
+}
+
+model patreon_attachment {
+  id           Int           @id
+  displayName  String        @db.VarChar(255)
+  filename     String        @db.VarChar(255)
+  creatorId    String?       @db.Char(36)
+  postId       Int?
+  creator      creator?      @relation(fields: [creatorId], references: [id], onDelete: Cascade, map: "FK_e82e2eda517c0d0dbf0d30c4d1c")
+  patreon_post patreon_post? @relation(fields: [postId], references: [id], onDelete: Cascade, map: "FK_ca683a262e07c7d815e214d9274")
+
+  @@index([postId], map: "FK_ca683a262e07c7d815e214d9274")
+  @@index([creatorId], map: "FK_e82e2eda517c0d0dbf0d30c4d1c")
+}
+
+model patreon_comment {
+  id                    Int               @id
+  authorUsername        String            @db.VarChar(255)
+  authorPicture         String?           @db.VarChar(255)
+  authorUrl             String?           @db.VarChar(255)
+  postedAt              DateTime          @db.DateTime(0)
+  contents              String            @db.Text
+  postId                Int?
+  parentIdId            Int?
+  comment               patreon_comment?  @relation("patreon_commentTopatreon_comment_parentIdId", fields: [parentIdId], references: [id], onDelete: Cascade, map: "FK_d6eb9eb71df5e20bcaf47fd1ee0")
+  post                  patreon_post?     @relation(fields: [postId], references: [id], onDelete: Cascade, map: "FK_e261f712b6df4bb75777748cdb1")
+  other_patreon_comment patreon_comment[] @relation("patreon_commentTopatreon_comment_parentIdId")
+
+  @@index([parentIdId], map: "FK_d6eb9eb71df5e20bcaf47fd1ee0")
+  @@index([postId], map: "FK_e261f712b6df4bb75777748cdb1")
+}
+
+model patreon_creator {
+  campaignId     Int            @id
+  username       String         @db.VarChar(255)
+  creatorId      String?        @db.Char(36)
+  creator        creator?       @relation(fields: [creatorId], references: [id], onDelete: Cascade, map: "FK_0923738a46f69f7f54d515d206d")
+  patreon_post   patreon_post[]
+  totalPostCount Int            @default(0)
+
+  @@index([creatorId], map: "FK_0923738a46f69f7f54d515d206d")
+}
+
+model patreon_embed {
+  id           String        @id @db.Char(36)
+  subject      String?       @db.VarChar(255)
+  description  String?       @db.LongText
+  provider     String?       @db.VarChar(255)
+  url          String        @db.VarChar(255)
+  postId       Int?
+  patreon_post patreon_post? @relation(fields: [postId], references: [id], onDelete: Cascade, map: "FK_a9a0ff71d4856f2e89d60fb11df")
+
+  @@index([postId], map: "FK_a9a0ff71d4856f2e89d60fb11df")
+}
+
+model patreon_post {
+  id                Int                  @id
+  postedAt          DateTime             @db.DateTime(0)
+  title             String               @db.VarChar(255)
+  imageUrl          String?              @db.VarChar(255)
+  creatorCampaignId Int
+  contents          String               @db.LongText
+  plainContents     String               @db.LongText
+  creator           patreon_creator      @relation(fields: [creatorCampaignId], references: [campaignId], onDelete: Cascade, map: "FK_3de69400321d4f57d75f0fd4fdd")
+  attachments       patreon_attachment[]
+  comments          patreon_comment[]
+  embeds            patreon_embed[]
+
+  @@index([creatorCampaignId], map: "FK_3de69400321d4f57d75f0fd4fdd")
+}
+
+model user {
+  id                    String                  @id @db.Char(36)
+  username              String                  @unique(map: "IDX_78a916df40e02a9deb1c4b75ed") @db.VarChar(255)
+  email                 String?                 @unique(map: "IDX_e12875dfb3b1d92d7d7c5377e2") @db.VarChar(255)
+  role                  user_role
+  banned                Int                     @default(0) @db.TinyInt
+  passphrase            String?                 @db.VarChar(255)
+  alias_email           String                  @db.VarChar(255)
+  user_favorite_creator user_favorite_creator[]
+}
+
+model user_favorite_creator {
+  userId    String  @db.Char(36)
+  creatorId String  @db.Char(36)
+  creator   creator @relation(fields: [creatorId], references: [id], onDelete: Cascade, map: "FK_54d94f4e608267dcb01789fbe99")
+  user      user    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_fb466a6ba4e310f13fff207d32a")
+
+  @@id([userId, creatorId])
+  @@index([creatorId], map: "IDX_54d94f4e608267dcb01789fbe9")
+  @@index([userId], map: "IDX_fb466a6ba4e310f13fff207d32")
+}
+
+enum user_role {
+  ADMIN
+  USER
+  MODERATOR
+}
